@@ -13,9 +13,9 @@ helm install service-mesh-operators -n openshift-operators service-mesh-operator
 
 1. Delete the helm chart release:
 
-   ```sh
-   helm delete service-mesh-operators -n openshift-operators
-   ```
+```sh
+helm delete service-mesh-operators -n openshift-operators
+```
 
 2. Follow the instructions from <https://docs.openshift.com/container-platform/4.9/service_mesh/service_mesh_install/removing-ossm.html>
 
@@ -36,3 +36,17 @@ helm install control-plane -n ${deploy_namespace} control-plane/
 ```sh
 export deploy_namespace=istio-system
 helm delete control-plane -n ${deploy_namespace}
+```
+
+## Basic Gateway Configuration
+
+```
+export bookinfo_namespace=bookinfo
+export control_plane_namespace=istio-system
+export control_plane_name=basic-install
+export control_plane_route_name=api
+```
+
+```
+bash install-basic-gateway-config.sh
+```

@@ -1,8 +1,8 @@
 apiVersion: maistra.io/v2
 kind: ServiceMeshControlPlane
 metadata:
-  namespace: istio-system
   name: {{ .Values.control_plane_name }}
+  namespace: {{ .Values.control_plane_namespace }}
 spec:
   version: v2.0
   tracing:
@@ -14,12 +14,14 @@ spec:
       enabled: true
       runtime:
         deployment:
-          replicas: 3
+          replicas: 1
     ingress:
       enabled: true
       runtime:
         deployment:
-          replicas: 3
+          replicas: 1
+    openshiftRoute:
+            enabled: false
   addons:
     grafana:
       enabled: true

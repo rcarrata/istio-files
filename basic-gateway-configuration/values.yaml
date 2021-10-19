@@ -1,4 +1,4 @@
-control_plane_name: basic-install
 control_plane_namespace: istio-system
-#is_production_deployment: false
+control_plane_name: basic-install
+route_hostname: example.com #TO_BE_CHANGED
 ingressgateway_name: istio-ingressgateway
