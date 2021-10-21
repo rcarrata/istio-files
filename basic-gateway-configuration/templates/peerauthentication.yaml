@@ -1,0 +1,14 @@
+{{- if $.Values.mtls }}
+---
+apiVersion: security.istio.io/v1beta1
+kind: PeerAuthentication
+metadata:
+  name: default
+spec:
+  mtls:
+  {{- if $.Values.permissive }}
+    mode: PERMISSIVE
+  {{- else}}
+    mode: STRICT
+  {{- end }}
+{{- end }}

@@ -4,7 +4,7 @@ metadata:
   name: rhsso-operator
 spec:
   channel: alpha
-  installPlanApproval: Automatic
+  installPlanApproval: {{ .Values.approval_strategy }}
   name: rhsso-operator
   source: redhat-operators
   sourceNamespace: openshift-marketplace
