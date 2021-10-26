@@ -170,4 +170,3 @@ cache-control: private
 ```
 
 ### B.3. Test the Bookinfo as a External User (outside the OCP Cluster)
-
