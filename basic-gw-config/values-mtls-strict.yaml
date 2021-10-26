@@ -3,5 +3,6 @@ control_plane_name: basic-install
 route_hostname: example.com #TO_BE_CHANGED
 ingressgateway_name: istio-ingressgateway
 
-mtls: false
-permissive: true
+mtls: true
+permissive: false
+peerauth: false

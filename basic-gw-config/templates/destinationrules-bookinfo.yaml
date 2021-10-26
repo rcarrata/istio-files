@@ -60,6 +60,7 @@ spec:
     labels:
       version: v2
 {{- if $.Values.mtls }}
+{{- if $.Values.peerauth }}
 ---
 apiVersion: networking.istio.io/v1alpha3
 kind: DestinationRule
@@ -70,4 +71,5 @@ spec:
   trafficPolicy:
     tls:
       mode: ISTIO_MUTUAL
+{{- end }}
 {{- end }}

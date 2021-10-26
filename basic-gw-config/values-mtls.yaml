@@ -5,3 +5,4 @@ ingressgateway_name: istio-ingressgateway
 
 mtls: true
 permissive: true
+peerauth: true
