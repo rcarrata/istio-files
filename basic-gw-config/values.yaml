@@ -4,4 +4,4 @@ route_hostname: example.com #TO_BE_CHANGED
 ingressgateway_name: istio-ingressgateway
 
 mtls: false
-#permissive: true
+permissive: true
