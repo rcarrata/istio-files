@@ -107,7 +107,7 @@ $ for i in {1..10}; do  curl -vI http://productpage:9080/productpage?u=normal &&
 
 NOTE: All the requests must return HTTP 200 OK
 
-<img align="center" width="700" src="pics/mts_kiali-inside-mesh.png">
+<img align="center" width="700" src="pics/mtls_kiali-inside-mesh.png">
 
 ## A.5. Check the mTLS outside the Mesh
 
@@ -122,7 +122,7 @@ $ for i in {1..10}; do  curl -vI http://productpage:9080/productpage?u=normal &&
 
 NOTE: All the requests must return HTTP 200 OK
 
-<img align="center" width="700" src="pics/mts_kiali-outside-mesh.png">
+<img align="center" width="700" src="pics/mtls_kiali-outside-mesh.png">
 
 You will notice that there are requests originating from "unknown". That is the pod inside which the curl command was executed.
 
