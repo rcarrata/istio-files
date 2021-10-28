@@ -7,7 +7,9 @@ Istio files used for try and break Service Mesh
 
 ## B. Basic Gateway Configuration
 
+* [Basic Service Mesh Gateway Configuration](docs/basic_deploy.md)
 
+NOTE: no auto mTLS enabled.
 
 ## C. mTLS Lab
 

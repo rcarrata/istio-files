@@ -16,6 +16,8 @@ helm upgrade -i basic-gw-config -n ${DEPLOY_NAMESPACE} \
   --set route_hostname=$(oc get route ${CONTROL_PLANE_ROUTE_NAME} -n ${CONTROL_PLANE_NAMESPACE} -o jsonpath={'.spec.host'}) \
   basic-gw-config
 
+sleep 5
+
 echo "Install bookinfo App..."
 
 helm upgrade -i bookinfo -n ${DEPLOY_NAMESPACE} bookinfo

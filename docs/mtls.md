@@ -29,10 +29,10 @@ helm upgrade -i basic-gw-config -n ${DEPLOY_NAMESPACE} \
   --set control_plane_namespace=${CONTROL_PLANE_NAMESPACE} \
   --set control_plane_name=${CONTROL_PLANE_NAME} \
   --set route_hostname=$(oc get route ${CONTROL_PLANE_ROUTE_NAME} -n ${CONTROL_PLANE_NAMESPACE} -o jsonpath={'.spec.host'}) \
-  basic-gw-config -f basic-gw-config/values-mtls
+  basic-gw-config -f basic-gw-config/values-mtls.yaml
 ```
 
-Check the [PeerAuthentication](https://istio.io/latest/docs/reference/config/security/peer_authentication/) object generated in the Bookinfo namespace:
+* Check the [PeerAuthentication](https://istio.io/latest/docs/reference/config/security/peer_authentication/) object generated in the Bookinfo namespace:
 
 ```
 oc get peerauthentications.security.istio.io default -o jsonpath='{.spec}' | jq .
@@ -149,6 +149,9 @@ oc get peerauthentications.security.istio.io default -o jsonpath='{.spec}' | jq 
 
 In Mode STRICT the connection is an mTLS tunnel (TLS with client cert must be presented).
 
+NOTE: It may take some time before the mesh begins to enforce PeerAuthentication object. Please wait and retry.
+
+
 ### B.2. Test the Bookinfo as a External User (outside the OCP Cluster)
 
 ```sh
@@ -169,4 +172,40 @@ set-cookie: 9023cfc9bfd45f5dc28756be7ac3bd3e=d8c5201aae101ce45ff167c09f1d6910; p
 cache-control: private
 ```
 
-### B.3. Test the Bookinfo as a External User (outside the OCP Cluster)
+### B.3 Check the mTLS within/inside the Mesh
+
+```sh
+oc exec -n bookinfo -ti deployment/inside-mesh -- bash
+```
+
+```
+
+```
+
+### B.4. Check the mTLS outside the Mesh
+
+Let's test again the connection from outside the mesh:
+
+```sh
+oc exec -n bookinfo -ti deployment/outside-mesh -- bash
+```
+
+```sh
+1000760000@outside-mesh-847dd9c646-6vj2b:/$ curl http://productpage:9080/productpage?u=normal -Iv
+...
+...
+* Expire in 200 ms for 4 (transfer 0x560642d40c10)
+* Connected to productpage (172.30.64.160) port 9080 (#0)
+> HEAD /productpage?u=normal HTTP/1.1
+> Host: productpage:9080
+> User-Agent: curl/7.64.0
+> Accept: */*
+>
+* Recv failure: Connection reset by peer
+* Closing connection 0
+curl: (56) Recv failure: Connection reset by peer
+```
+
+We can see that the curl from the curl pod failed with exit code 56. 
+
+This is because preference is now requiring encrypted communication over mutual TLS (STRICT) via a Peer Authentication Istio object, but the curl pod (which is outside the mesh) is not attempting to use mututal TLS.
