@@ -15,12 +15,6 @@ export control_plane_route_name=api
 bash install-basic-gw-config.sh
 ```
 
-* Force to Auto Inject  once the ServiceMeshMember it's enabled.
-
-```sh
-oc delete pod --all -n bookinfo
-```
-
 * Check that the App Istio pods have the sidecards deployed:
 
 ```sh

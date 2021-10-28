@@ -8,6 +8,8 @@ spec:
   mtls:
   {{- if $.Values.permissive }}
     mode: PERMISSIVE
+  {{- else if $.Values.mtlsdisable }}
+    mode: DISABLE
   {{- else}}
     mode: STRICT
   {{- end }}
