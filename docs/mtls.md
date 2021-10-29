@@ -321,7 +321,7 @@ If you check the pcap file with Wireshark, now the traffic it's NOT encrypted an
 
 ## C. Enforce mTLS with STRICT
 
-Now let's enforce the 
+Now let's enforce the use of the mTLS in all of the inbound and outbound traffic using the mTLS mode STRICT.
 
 ## C.1. Enable the STRICT mTLS value (without PeerAuth)
 
@@ -427,4 +427,4 @@ This is because preference is now requiring encrypted communication over mutual 
 
 ## D. Best Practices with mTLS and Service Mesh
 
-TBD
+TO BE FINISHED
