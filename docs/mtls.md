@@ -1,4 +1,4 @@
-# mTLS Lab
+# mTLS Deep Dive Lab
 
 Mutual authentication or two-way authentication refers to two parties authenticating each other at the same time, being a default mode of authentication in some protocols (IKE, SSH) and optional in others (TLS).
 
@@ -151,7 +151,7 @@ $ for i in {1..10}; do curl -vI http://productpage:9080/productpage?u=normal && 
 
 If you noticed, the request does not come from the Ingress Gw, it's coming from the Inside-Mesh pod. Cool, isn't?
 
-## A.5. Check the mTLS outside the Mesh
+### A.5. Check the mTLS outside the Mesh
 
 Now it's the turn to demonstrate that with the Mode PERMISSIVE, the traffic that's allowed in our Mesh namespace can be in mTLS and also in Plain Text (HTTP). 
 
