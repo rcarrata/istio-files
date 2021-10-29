@@ -250,7 +250,9 @@ If you check the pcap file with Wireshark, all the traffic it's encrypted with T
 
 ## B. Deploy mTLS with mode DISABLE
 
-Now, let's see what
+Now, let's see what happens when we turn off the mTLS at the namespace level. We can disable the mTLS using the mode: DISABLE at the PeerAuthentication level, and also applying at the DestinationRule level (this is not a strong requirement, but ensures that in all places the DISABLE mode it's set).
+
+* Let's deploy the Istio objects for disable the mTLS in the bookinfo namespace:
 
 ```sh
 helm upgrade -i basic-gw-config -n ${DEPLOY_NAMESPACE} \
@@ -259,6 +261,32 @@ helm upgrade -i basic-gw-config -n ${DEPLOY_NAMESPACE} \
   --set route_hostname=$(oc get route ${CONTROL_PLANE_ROUTE_NAME} -n ${CONTROL_PLANE_NAMESPACE} -o jsonpath={'.spec.host'}) \
   basic-gw-config -f basic-gw-config/values-mtls-disabled.yaml
 ```
+
+* Check the PeerAuthentication to verify if it's in mode DISABLE:
+
+```sh
+oc get peerauthentications.security.istio.io -n bookinfo default -o jsonpath='{.spec}' | jq .
+{
+  "mtls": {
+    "mode": "DISABLE"
+  }
+}
+```
+
+* Check the DestinationRule to see if the tls it's in mode DISABLE:
+
+```sh
+oc get dr {-n bookinfo bookinfo-mtls -o jsonpath='{.spec}' | jq .
+  "host": "*",
+  "trafficPolicy": {
+    "tls": {
+      "mode": "DISABLE"
+    }
+  }
+}
+```
+
+* Now we're going to check in one random pod if this is effectively also at the Envoy Istio pods in our Service Mesh cluster:
 
 ```sh
 istioctl experimental authz check $(kubectl get pods -n bookinfo | grep details| head -1| awk '{
@@ -290,6 +318,8 @@ Notice that mTLS is not enabled in the virtual inbounds.
 
 To validate how traffic is sent through Istio proxies in plain text, we will be using the [Ksniff](https://github.com/eldadru/ksniff) utility.
 
+* Extract the Producpage pod ID and the Details IP (we will originate our check in the ProductPage pod, and check the traffic to the Details Pod IP):
+
 ```sh
 POD_PRODUCTPAGE=$(oc get pod | grep productpage | awk '{print $1}')
 
@@ -299,13 +329,13 @@ echo $DETAILS_IP
 
 In the previous case the Details IP is still 10.131.1.100.
 
-Then let’s sniff the traffic that is sent from the ProductPage pod to the Details v1 pod by running:
+* Then let’s sniff the traffic that is sent from the ProductPage pod to the Details v1 pod by running:
 
 ```sh
 kubectl sniff -i eth0 -o ./mtls-disabled.pcap $POD_PRODUCTPAGE -f '((tcp) and (net 10.131.1.100))' -n bookinfo -p -c istio-proxy
 ```
 
-Once we have the Kniff executed, we need to perform some requests:
+* Once we have the Kniff executed, we need to perform some requests:
 
 ```
 curl $GATEWAY_URL -I
@@ -319,11 +349,15 @@ curl $GATEWAY_URL -I
 
 If you check the pcap file with Wireshark, now the traffic it's NOT encrypted and it's in Plain Text! So if anybody do a Man in the Middle attack we can leak sensitive information!
 
+IMPORTANT: This is NOT recommended for production, but you already know that, isn't? :D  
+
 ## C. Enforce mTLS with STRICT
 
 Now let's enforce the use of the mTLS in all of the inbound and outbound traffic using the mTLS mode STRICT.
 
 ## C.1. Enable the STRICT mTLS value (without PeerAuth)
+
+* Let's deploy our setup enabling this time the mTLS to STRICT:
 
 ```
 helm upgrade -i basic-gw-config -n ${DEPLOY_NAMESPACE} \
@@ -332,6 +366,8 @@ helm upgrade -i basic-gw-config -n ${DEPLOY_NAMESPACE} \
   --set route_hostname=$(oc get route ${CONTROL_PLANE_ROUTE_NAME} -n ${CONTROL_PLANE_NAMESPACE} -o jsonpath={'.spec.host'}) \
   basic-gw-config -f basic-gw-config/values-mtls-strict.yaml
 ```
+
+* Check the PeerAuthentication for ensure that the mode STRICT is set: 
 
 ```sh
 oc get peerauthentications.security.istio.io default -o jsonpath='{.spec}' | jq .
@@ -344,11 +380,11 @@ oc get peerauthentications.security.istio.io default -o jsonpath='{.spec}' | jq 
 
 In Mode STRICT the connection is an mTLS tunnel (TLS with client cert must be presented).
 
-NOTE: It may take some time before the mesh begins to enforce PeerAuthentication object. Please wait and retry.
+NOTE: It may take some time before the mesh begins to enforce PeerAuthentication object. Please wait couple of minutes.
 
 On the other hand, as we not enabled the automatic mTLS, and we have the PeerAuthentication to STRICT we need to create a DestinationRule resource for our application service.
 
-Create a destination rule to configure Maistra to use mTLS when sending requests to other services in the mesh.
+* Create a destination rule to configure Maistra to use mTLS when sending requests to other services in the mesh.
 
 ```sh
 oc get dr bookinfo-mtls -o jsonpath='{.spec}' | jq .
@@ -424,7 +460,3 @@ curl: (56) Recv failure: Connection reset by peer
 We can see that the curl from the curl pod failed with exit code 56.
 
 This is because preference is now requiring encrypted communication over mutual TLS (STRICT) via a Peer Authentication Istio object, but the curl pod (which is outside the mesh) is not attempting to use mutual TLS.
-
-## D. Best Practices with mTLS and Service Mesh
-
-TO BE FINISHED
