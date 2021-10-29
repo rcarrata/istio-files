@@ -58,4 +58,6 @@ spec:
   trafficPolicy:
     tls:
       mode: ISTIO_MUTUAL
+  {{- else if $.Values.mtlsdisable }}
+      mode: DISABLE
 {{- end }}

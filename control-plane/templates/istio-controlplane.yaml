@@ -36,3 +36,9 @@ spec:
   version: v2.0
   telemetry:
     type: Istiod
+  security:
+    dataPlane:
+      mtls: false
+      automtls: false
+    controlPlane:
+      mtls: false

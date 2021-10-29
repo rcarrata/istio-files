@@ -4,22 +4,36 @@ Mutual authentication or two-way authentication refers to two parties authentica
 
 With Red Hat OpenShift Service Mesh, Mutual TLS can be used without either application/service knowing that it is happening. The TLS is handled entirely by the service mesh infrastructure and between the two sidecar proxies.
 
-## A. Deploy mTLS in Permissive Mode
-
 The mTLS Istio feature could be enable at the cluster level, or at namespace level. We will enable at the namespace level, demoing the Istio objects that controls mTLS security.
 
-If you are using Istio 1.5 or beyond (Service Mesh v2.), mTLS is enabled by default in permissive mode.
+In the deployment of the lab, we disabled the mtls and the automtls at the ServiceMeshControlPlane, because we want to control everything at the namespace level (and trick the mTLS to be disabled):
+
+<img align="center" width="700" src="pics/automtls.png">
+
+At the ServiceMeshControlPlane in the yaml cluster we can see the specific CR for the security part of the Mesh Control Plane:
 
 ```sh
-oc get peerauthentication -n istio-system default -o jsonpath='{.spec}' | jq .
+oc get smcp -n istio-system basic-install -o jsonpath='{.spec.security}' | jq .
 {
-  "mtls": {
-    "mode": "PERMISSIVE"
+  "controlPlane": {
+    "mtls": false
+  },
+  "dataPlane": {
+    "automtls": false,
+    "mtls": false
   }
 }
 ```
 
+NOTE: A PeerAuthentication by default it's generated in the Istio Control Plane namespace (istio-system in our case).
+
+With this you can have the full control of the PeerAuthentications and the Destination Rules generated in the cluster, but on the other hand are not automated by the ServiceMeshControlPlane and Service Mesh Operators and you need to provide them in each case.
+
+## A. Deploy mTLS in Permissive Mode
+
 ### A.1. Deploy Service Mesh mTLS for specific App (namespace level)
+
+As we described before we can enable the mtls at the namespace level as the [Service Mesh documentation](https://docs.openshift.com/container-platform/4.9/service_mesh/v2x/ossm-security.html#ossm-security-mtls_ossm-security) specifies:
 
 ```sh
 export bookinfo_namespace=bookinfo
@@ -52,12 +66,11 @@ oc get peerauthentications.security.istio.io default -o jsonpath='{.spec}' -n $b
     "mode": "PERMISSIVE"
   }
 }
-`
 ```
 
-PeerAuthentication defines how traffic will be tunneled (or not) to the sidecar.
+PeerAuthentication defines how traffic will be tunneled (or not) to the sidecar. In Mode PERMISSIVE the connection can be either plaintext or mTLS tunnel.
 
-In Mode PERMISSIVE the connection can be either plaintext or mTLS tunnel.
+For more information check the [Modes of PeerAuthentication](https://istio.io/latest/docs/reference/config/security/peer_authentication/#PeerAuthentication-MutualTLS-Mode).
 
 ### A.2. Test the Bookinfo as a External User (outside the OCP Cluster)
 
@@ -208,6 +221,14 @@ At the same directory, you have a file named mtls.pcap which is the captured tra
 ## B. Deploy mTLS with mode DISABLE
 
 ```sh
+helm upgrade -i basic-gw-config -n ${DEPLOY_NAMESPACE} \
+  --set control_plane_namespace=${CONTROL_PLANE_NAMESPACE} \
+  --set control_plane_name=${CONTROL_PLANE_NAME} \
+  --set route_hostname=$(oc get route ${CONTROL_PLANE_ROUTE_NAME} -n ${CONTROL_PLANE_NAMESPACE} -o jsonpath={'.spec.host'}) \
+  basic-gw-config -f basic-gw-config/values-mtls-disabled.yaml
+```
+
+```sh
 istioctl experimental authz check $(kubectl get pods -n bookinfo | grep details| head -1| awk '{
 print $1}')
 Checked 13/25 listeners with node IP 10.131.1.100.
@@ -233,7 +254,31 @@ virtualInbound[5]         none            no (none)       no (none)
 0.0.0.0_15014             none            no (none)       no (none)
 ```
 
-* TO BE FINISHED
+Notice that mTLS is not enabled in the virtual inbounds.
+
+To validate how traffic is sent through Istio proxies in plain text, we will be using the [Ksniff](https://github.com/eldadru/ksniff) utility.
+
+```sh
+POD_PRODUCTPAGE=$(oc get pod | grep productpage | awk '{print $1}')
+
+DETAILS_IP=$(oc get pod -o wide | grep details | awk '{print $6}')
+echo $DETAILS_IP
+```
+
+In the previous case the Details IP is still 10.131.1.100.
+
+Then let’s sniff the traffic that is sent from the ProductPage pod to the Details v1 pod by running:
+
+```sh
+kubectl sniff -i eth0 -o ./mtls-disabled.pcap $POD_PRODUCTPAGE -f '((tcp) and (net 10.131.1.100))' -n bookinfo -p -c istio-proxy
+```
+
+Once we have the Kniff executed, we need to perform some requests:
+
+```
+curl $GATEWAY_URL -I
+```
+
 
 ## C. Enforce mTLS with STRICT
 
@@ -338,3 +383,7 @@ curl: (56) Recv failure: Connection reset by peer
 We can see that the curl from the curl pod failed with exit code 56.
 
 This is because preference is now requiring encrypted communication over mutual TLS (STRICT) via a Peer Authentication Istio object, but the curl pod (which is outside the mesh) is not attempting to use mutual TLS.
+
+## D. Best Practices with mTLS and Service Mesh
+
+TBD
