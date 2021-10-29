@@ -8,7 +8,7 @@ The mTLS Istio feature could be enable at the cluster level, or at namespace lev
 
 In the deployment of the lab, we disabled the mtls and the automtls at the ServiceMeshControlPlane, because we want to control everything at the namespace level (and trick the mTLS to be disabled):
 
-<img align="center" width="700" src="pics/automtls.png">
+<img align="center" width="300" src="pics/automtls.png">
 
 At the ServiceMeshControlPlane in the yaml cluster we can see the specific CR for the security part of the Mesh Control Plane:
 
