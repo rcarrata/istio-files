@@ -33,7 +33,9 @@ With this you can have the full control of the PeerAuthentications and the Desti
 
 ### A.1. Deploy Service Mesh mTLS for specific App (namespace level)
 
-As we described before we can enable the mtls at the namespace level as the [Service Mesh documentation](https://docs.openshift.com/container-platform/4.9/service_mesh/v2x/ossm-security.html#ossm-security-mtls_ossm-security) specifies:
+As we described before we can enable the mtls at the namespace level as the [Service Mesh documentation](https://docs.openshift.com/container-platform/4.9/service_mesh/v2x/ossm-security.html#ossm-security-mtls_ossm-security) specifies.
+
+Let's deploy the Istio objects that are required for enable the mTLS at the namespace level: 
 
 ```sh
 export bookinfo_namespace=bookinfo
@@ -74,6 +76,8 @@ For more information check the [Modes of PeerAuthentication](https://istio.io/la
 
 ### A.2. Test the Bookinfo as a External User (outside the OCP Cluster)
 
+Let's test the app from outside the OCP cluster, simulating as we are a user of our application:
+
 ```sh
 GATEWAY_URL=$(echo https://$(oc get route ${control_plane_route_name} -n ${control_plane_namespace} -o jsonpath={'.spec.host'})/productpage)
 
@@ -108,36 +112,56 @@ server: istio-envoy
 
 ### A.3. Check Kiali service
 
+* Let's check the Kiali service:
+
 ```sh
 echo https://$(oc get route -n $control_plane_namespace kiali -o jsonpath={'.spec.host'})
 ```
+
+* In the Kiali we can see (with the mTLS Security flag enabled), that from the request goes thought the ingressGW and all the traffic between our microservices of our app is encrypted with mTLS:  
 
 <img align="center" width="700" src="pics/mtls-kiali1.png">
 
 ## A.4. Check the mTLS within/inside the Mesh
 
+Let's do a test inside our mesh application, simulating that the requests comes from another pod but INSIDE the mesh.
+
+* Deploy a test application for execute the tests:
+
 ```sh
 oc create deployment --image nginxinc/nginx-unprivileged inside-mesh -n $bookinfo_namespace
 ```
 
+* Enable the autoinjection, patching the deployment of ou application adding an annotation the sidecar.istio.io/inject to true:
+
 ```sh
 oc patch deploy/inside-mesh -p '{"spec":{"template":{"metadata":{"annotations":{"sidecar.istio.io/inject":"true"}}}}}' -n bookinfo
 ```
+
+* Inside the pod execute several requests toward the ProductPage microservice:
 
 ```sh
 oc exec -ti deploy/inside-mesh -- bash
 $ for i in {1..10}; do curl -vI http://productpage:9080/productpage?u=normal && sleep 2; done
 ```
 
-NOTE: All the requests must return HTTP 200 OK
+* All the requests must return HTTP 200 OK
 
 <img align="center" width="700" src="pics/mtls-kiali-inside-mesh.png">
 
+If you noticed, the request does not come from the Ingress Gw, it's coming from the Inside-Mesh pod. Cool, isn't?
+
 ## A.5. Check the mTLS outside the Mesh
+
+Now it's the turn to demonstrate that with the Mode PERMISSIVE, the traffic that's allowed in our Mesh namespace can be in mTLS and also in Plain Text (HTTP). 
+
+* Let's generate another deployment for execute the test but without injecting the Istio sidecar:
 
 ```sh
 oc create deployment --image nginxinc/nginx-unprivileged outside-mesh -n $bookinfo_namespace
 ```
+
+* In the the Outside Pod, execute the same request as before: 
 
 ```sh
 oc exec -ti deploy/outside-mesh -- bash
@@ -151,6 +175,10 @@ NOTE: All the requests must return HTTP 200 OK
 You will notice that there are requests originating from "unknown". That is the pod inside which the curl command was executed.
 
 ### A.6 Check the encryption between microservices with mTLS in Permissive mode
+
+Now let's check if our traffic it's encrypted using the [istioctl tools](https://istio.io/latest/docs/setup/getting-started/#download), with the flag of [experimental authz check](https://istio.io/latest/docs/reference/commands/istioctl/#istioctl-experimental-authz-check) directly in one of the pods (we selected randomly the Details but works with the others).
+
+* Let's execute the experimental authz check with the pod id and grepping for virtual, for checking the status of the Envoy configuration in the Pod:
 
 ```
 istioctl experimental authz check $(kubectl get pods -n bookinfo | grep details| head -1| awk '{print $1}') | grep virtual
@@ -175,7 +203,7 @@ virtualInbound[9]         none                 no (PERMISSIVE)      no (none)
 
 Notice that mTLS is enabled in the virtual inbounds.
 
-To validate how traffic is sent through Istio proxies, we will be using the [Ksniff](https://github.com/eldadru/ksniff) utility.
+* To validate how traffic is sent through Istio proxies, we will be using the [Ksniff](https://github.com/eldadru/ksniff) utility.
 
 ```sh
 POD_PRODUCTPAGE=$(oc get pod | grep productpage | awk '{print $1}')
@@ -186,7 +214,7 @@ echo $DETAILS_IP
 
 In the previous case the Details IP is 10.131.1.100.
 
-Then let’s sniff the traffic that is sent from the ProductPage pod to the Details v1 pod by running:
+* Then let’s sniff the traffic that is sent from the ProductPage pod to the Details v1 pod by running:
 
 ```sh
 kubectl sniff -i eth0 -o ./mtls.pcap $POD_PRODUCTPAGE -f '((tcp) and (net 10.131.1.100))' -n bookinfo -p -c istio-proxy
@@ -206,19 +234,23 @@ INFO[0008] starting remote sniffing using privileged pod
 INFO[0008] executing command: '[nsenter -n -t 2430077 -- tcpdump -i eth0 -U -w - ((tcp) and (net 10.131.1.100))]' on container: 'ksniff-privileged', pod: 'ksniff-wn8t4', namespace: 'bookinfo'
 ```
 
-So now go to a new terminal window and execute:
+* So now go to a new terminal window and execute:
 
 ```
 curl $GATEWAY_URL -I
 ```
 
-Then move to kubectl sniff terminal window and stop the process (Ctrl+C).
+* Then move to kubectl sniff terminal window and stop the process (Ctrl+C).
 
-At the same directory, you have a file named mtls.pcap which is the captured traffic, you can use Wireshark to open the file, and you’ll see something like:
+* At the same directory, you have a file named mtls.pcap which is the captured traffic, you can use Wireshark to open the file, and you’ll see something like:
 
 <img align="center" width="700" src="pics/mtls-enabled-wireshark.png">
 
+If you check the pcap file with Wireshark, all the traffic it's encrypted with TLS1.x from and to all the microservices, because we enabled the mTLS feature in the PeerAuthentication object with the mode PERMISSIVE. 
+
 ## B. Deploy mTLS with mode DISABLE
+
+Now, let's see what
 
 ```sh
 helm upgrade -i basic-gw-config -n ${DEPLOY_NAMESPACE} \
@@ -279,8 +311,17 @@ Once we have the Kniff executed, we need to perform some requests:
 curl $GATEWAY_URL -I
 ```
 
+* Then move to kubectl sniff terminal window and stop the process (Ctrl+C).
+
+* At the same directory, you have a file named mtls-disabled.pcap which is the captured traffic, you can use Wireshark to open the file, and you’ll see something like:
+
+<img align="center" width="700" src="pics/mtls-disabled-wireshark.png">
+
+If you check the pcap file with Wireshark, now the traffic it's NOT encrypted and it's in Plain Text! So if anybody do a Man in the Middle attack we can leak sensitive information!
 
 ## C. Enforce mTLS with STRICT
+
+Now let's enforce the 
 
 ## C.1. Enable the STRICT mTLS value (without PeerAuth)
 
